@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: diancai
+    env: docker
+    plan: free
+    healthCheckPath: /api/dishes
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: diancai-db
+          property: connectionString
+
+databases:
+  - name: diancai-db
+    plan: free
