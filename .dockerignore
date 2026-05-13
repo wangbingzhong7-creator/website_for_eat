@@ -1,0 +1,6 @@
+__pycache__
+*.pyc
+*.pyo
+menu.db
+图片素材
+.git
