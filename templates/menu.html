@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>点菜系统</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<nav class="navbar">
+  <h1>🍽️ 餐厅点菜</h1>
+  <div class="nav-links">
+    <a href="#" class="cart-toggle" onclick="toggleCart()">🛒 购物车 <span id="cart-count">0</span></a>
+    <a href="/admin">⚙️ 后台管理</a>
+  </div>
+</nav>
+
+<div class="menu-layout">
+  <div class="menu-main">
+    {% for category in categories %}
+    <section class="category-section">
+      <h2 class="category-title">{{ category.category }}</h2>
+      <div class="dish-grid">
+        {% for dish in dishes if dish.category == category.category %}
+        <div class="dish-card">
+          <div class="dish-img-wrap">
+            {% if dish.image_url %}
+            <img src="{{ dish.image_url }}" alt="{{ dish.name }}" class="dish-img" onerror="this.style.display='none'">
+            {% endif %}
+            <div class="dish-img-placeholder">{{ dish.name[0] }}</div>
+          </div>
+          <div class="dish-info">
+            <h3>{{ dish.name }}</h3>
+            <p class="dish-desc">{{ dish.description }}</p>
+            <div class="dish-bottom">
+              <span class="dish-price">¥{{ "%.2f"|format(dish.price) }}</span>
+              <button class="btn-add" onclick="addToCart({{ dish.id }}, '{{ dish.name }}', {{ dish.price }})">＋ 加入</button>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+
+  <aside class="cart-sidebar" id="cart-sidebar">
+    <div class="cart-header">
+      <h2>购物车</h2>
+      <button class="cart-close" onclick="toggleCart()">✕</button>
+    </div>
+    <div class="cart-items" id="cart-items">
+      <p class="cart-empty">购物车是空的</p>
+    </div>
+    <div class="cart-footer">
+      <div class="cart-total">合计：<span id="cart-total">¥0.00</span></div>
+      <button class="btn-order" onclick="submitOrder()">下单</button>
+    </div>
+  </aside>
+</div>
+
+<script>
+let cart = {};
+
+function addToCart(id, name, price) {
+  if (cart[id]) {
+    cart[id].qty++;
+  } else {
+    cart[id] = { name, price, qty: 1 };
+  }
+  renderCart();
+}
+
+function changeQty(id, delta) {
+  if (!cart[id]) return;
+  cart[id].qty += delta;
+  if (cart[id].qty <= 0) delete cart[id];
+  renderCart();
+}
+
+function toggleCart() {
+  document.getElementById('cart-sidebar').classList.toggle('open');
+}
+
+function renderCart() {
+  const container = document.getElementById('cart-items');
+  const countEl = document.getElementById('cart-count');
+  const totalEl = document.getElementById('cart-total');
+  let total = 0;
+  let count = 0;
+  let html = '';
+  for (const [id, item] of Object.entries(cart)) {
+    const subtotal = item.price * item.qty;
+    total += subtotal;
+    count += item.qty;
+    html += `<div class="cart-item">
+      <span>${item.name}</span>
+      <div class="cart-qty">
+        <button onclick="changeQty(${id}, -1)">−</button>
+        <span>${item.qty}</span>
+        <button onclick="changeQty(${id}, 1)">＋</button>
+      </div>
+      <span>¥${subtotal.toFixed(2)}</span>
+    </div>`;
+  }
+  container.innerHTML = html || '<p class="cart-empty">购物车是空的</p>';
+  countEl.textContent = count;
+  totalEl.textContent = `¥${total.toFixed(2)}`;
+}
+
+let currentStep = 'confirm';
+let selectedMethod = '微信支付';
+let orderTotal = 0;
+let paymentTimer = null;
+
+function submitOrder() {
+  const items = Object.entries(cart);
+  if (items.length === 0) return alert('请先添加菜品');
+  orderTotal = items.reduce((s, [id, item]) => s + item.price * item.qty, 0);
+  // 渲染订单确认列表
+  const listHtml = items.map(([id, item]) =>
+    `<div class="pay-item"><span>${item.name} ×${item.qty}</span><span>¥${(item.price * item.qty).toFixed(2)}</span></div>`
+  ).join('');
+  document.getElementById('pay-items-list').innerHTML = listHtml;
+  document.getElementById('pay-total').textContent = `¥${orderTotal.toFixed(2)}`;
+  // 重置到确认步骤
+  showStep('confirm');
+  document.getElementById('payment-modal').classList.add('active');
+  document.getElementById('cart-sidebar').classList.remove('open');
+}
+
+function showStep(step) {
+  currentStep = step;
+  document.querySelectorAll('.pay-step').forEach(el => el.classList.remove('active'));
+  document.getElementById('pay-step-' + step).classList.add('active');
+}
+
+function selectMethod(method) {
+  selectedMethod = method;
+  document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('btn-' + method).classList.add('selected');
+}
+
+function confirmPay() {
+  showStep('processing');
+  let countdown = 3;
+  document.getElementById('pay-countdown').textContent = countdown;
+  paymentTimer = setInterval(() => {
+    countdown--;
+    if (countdown <= 0) {
+      clearInterval(paymentTimer);
+      completePayment();
+    } else {
+      document.getElementById('pay-countdown').textContent = countdown;
+    }
+  }, 1000);
+}
+
+async function completePayment() {
+  const items = Object.entries(cart).map(([id, item]) => ({
+    dish_id: parseInt(id), name: item.name, price: item.price, qty: item.qty
+  }));
+  const total = items.reduce((s, item) => s + item.price * item.qty, 0);
+  try {
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items, total, payment_method: selectedMethod })
+    });
+    const order = await res.json();
+    document.getElementById('pay-order-id').textContent = order.id;
+    showStep('success');
+    cart = {};
+    renderCart();
+  } catch (e) {
+    alert('支付失败，请重试');
+    closePayment();
+  }
+}
+
+function closePayment() {
+  if (paymentTimer) { clearInterval(paymentTimer); paymentTimer = null; }
+  document.getElementById('payment-modal').classList.remove('active');
+}
+</script>
+<!-- 支付弹窗 -->
+<div class="payment-overlay" id="payment-modal">
+  <div class="payment-card">
+    <!-- 步骤1: 订单确认 -->
+    <div class="pay-step active" id="pay-step-confirm">
+      <h2>确认订单</h2>
+      <div class="pay-items" id="pay-items-list"></div>
+      <div class="pay-total-row">合计：<span id="pay-total">¥0.00</span></div>
+      <div class="pay-methods">
+        <p class="pay-method-label">选择支付方式</p>
+        <div class="pay-method-btns">
+          <button class="pay-method-btn selected" id="btn-微信支付" onclick="selectMethod('微信支付')">
+            <span class="pay-icon">💚</span> 微信支付
+          </button>
+          <button class="pay-method-btn" id="btn-支付宝" onclick="selectMethod('支付宝')">
+            <span class="pay-icon">💙</span> 支付宝
+          </button>
+        </div>
+      </div>
+      <div class="pay-actions">
+        <button class="btn-pay-confirm" onclick="confirmPay()">确认支付</button>
+        <button class="btn-pay-cancel" onclick="closePayment()">取消</button>
+      </div>
+    </div>
+
+    <!-- 步骤2: 支付中 -->
+    <div class="pay-step" id="pay-step-processing">
+      <h2>模拟支付中</h2>
+      <div class="qrcode-sim">
+        <div class="qrcode-box">
+          <div class="qrcode-inner"></div>
+        </div>
+      </div>
+      <p class="pay-hint">请扫描二维码完成支付</p>
+      <p class="pay-countdown">剩余 <span id="pay-countdown">3</span> 秒</p>
+    </div>
+
+    <!-- 步骤3: 支付成功 -->
+    <div class="pay-step" id="pay-step-success">
+      <div class="success-icon">✓</div>
+      <h2>支付成功</h2>
+      <p class="success-order">订单号：<strong>#<span id="pay-order-id"></span></strong></p>
+      <p class="success-hint">您的菜品已下单，请耐心等待</p>
+      <button class="btn-pay-done" onclick="closePayment()">完成</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

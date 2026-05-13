@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>后台管理 - 点菜系统</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<nav class="navbar">
+  <h1>⚙️ 后台管理</h1>
+  <a href="/">← 返回点菜页</a>
+</nav>
+
+<div class="admin-container">
+  <section class="admin-panel">
+    <h2 id="form-title">添加菜品</h2>
+    <form class="dish-form" id="dish-form" onsubmit="saveDish(event)">
+      <input type="hidden" id="dish-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="dish-name">名称 *</label>
+          <input type="text" id="dish-name" required>
+        </div>
+        <div class="form-group">
+          <label for="dish-price">价格 *</label>
+          <input type="number" id="dish-price" step="0.01" min="0" required>
+        </div>
+        <div class="form-group">
+          <label for="dish-category">分类</label>
+          <input type="text" id="dish-category" value="未分类">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="dish-desc">描述</label>
+        <input type="text" id="dish-desc">
+      </div>
+      <div class="form-group">
+        <label for="dish-image">图片URL</label>
+        <input type="url" id="dish-image" placeholder="https://...">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-save">💾 保存</button>
+        <button type="button" class="btn-cancel" onclick="resetForm()">取消</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="admin-panel">
+    <h2>📱 扫码点餐</h2>
+    <p class="qrcode-hint">点击按钮生成点菜页二维码，顾客扫码即可点餐</p>
+    <div class="qrcode-area">
+      <div class="qrcode-img-wrap" id="qrcode-wrap">
+        <img id="qrcode-img" src="" alt="点餐二维码" style="display:none">
+        <p id="qrcode-placeholder" class="qrcode-placeholder">点击下方按钮生成二维码</p>
+      </div>
+      <div class="qrcode-actions">
+        <button class="btn-qrcode" onclick="generateQRCode()">🔄 生成二维码</button>
+        <button class="btn-download" onclick="downloadQRCode()" id="btn-download" disabled>⬇️ 下载图片</button>
+        <p class="qrcode-url" id="qrcode-url"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="admin-panel">
+    <h2>菜品列表</h2>
+    <table class="dish-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>图片</th>
+          <th>名称</th>
+          <th>价格</th>
+          <th>分类</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="dish-tbody">
+        {% for dish in dishes %}
+        <tr>
+          <td>{{ dish.id }}</td>
+          <td><img src="{{ dish.image_url }}" class="thumb" onerror="this.style.display='none'" alt=""></td>
+          <td>{{ dish.name }}</td>
+          <td>¥{{ "%.2f"|format(dish.price) }}</td>
+          <td>{{ dish.category }}</td>
+          <td class="actions">
+            <button class="btn-edit" onclick="editDish({{ dish.id }})">编辑</button>
+            <button class="btn-del" onclick="deleteDish({{ dish.id }})">删除</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="admin-panel">
+    <h2>📋 订单管理</h2>
+    <div id="order-list">
+      <p style="color:#aaa;text-align:center;padding:20px;">加载中...</p>
+    </div>
+  </section>
+</div>
+
+<script>
+let qrcodeUrl = '';
+
+async function generateQRCode() {
+  const img = document.getElementById('qrcode-img');
+  const placeholder = document.getElementById('qrcode-placeholder');
+  const btnDownload = document.getElementById('btn-download');
+  const urlDisplay = document.getElementById('qrcode-url');
+  // 加时间戳避免浏览器缓存
+  qrcodeUrl = '/qrcode?t=' + Date.now();
+  img.src = qrcodeUrl;
+  img.style.display = 'block';
+  placeholder.style.display = 'none';
+  btnDownload.disabled = false;
+  // 显示点菜地址
+  try {
+    const res = await fetch('/api/dishes');
+    if (res.ok) {
+      urlDisplay.textContent = '点菜地址：' + location.origin + '/';
+    }
+  } catch (e) {
+    urlDisplay.textContent = '点菜地址：' + location.origin + '/';
+  }
+}
+
+function downloadQRCode() {
+  if (!qrcodeUrl) return;
+  const a = document.createElement('a');
+  a.href = qrcodeUrl;
+  a.download = '点菜二维码.png';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+async function saveDish(e) {
+  e.preventDefault();
+  const id = document.getElementById('dish-id').value;
+  const data = {
+    name: document.getElementById('dish-name').value,
+    price: document.getElementById('dish-price').value,
+    description: document.getElementById('dish-desc').value,
+    image_url: document.getElementById('dish-image').value,
+    category: document.getElementById('dish-category').value,
+  };
+  const url = id ? `/api/dishes/${id}` : '/api/dishes';
+  const method = id ? 'PUT' : 'POST';
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (res.ok) {
+    location.reload();
+  } else {
+    const err = await res.json();
+    alert(err.error || '保存失败');
+  }
+}
+
+async function editDish(id) {
+  const res = await fetch('/api/dishes');
+  const dishes = await res.json();
+  const dish = dishes.find(d => d.id === id);
+  if (!dish) return;
+  document.getElementById('dish-id').value = dish.id;
+  document.getElementById('dish-name').value = dish.name;
+  document.getElementById('dish-price').value = dish.price;
+  document.getElementById('dish-desc').value = dish.description;
+  document.getElementById('dish-image').value = dish.image_url;
+  document.getElementById('dish-category').value = dish.category;
+  document.getElementById('form-title').textContent = '编辑菜品';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetForm() {
+  document.getElementById('dish-form').reset();
+  document.getElementById('dish-id').value = '';
+  document.getElementById('dish-category').value = '未分类';
+  document.getElementById('form-title').textContent = '添加菜品';
+}
+
+async function deleteDish(id) {
+  if (!confirm('确定删除这道菜吗？')) return;
+  await fetch(`/api/dishes/${id}`, { method: 'DELETE' });
+  location.reload();
+}
+
+// ===== 订单管理 =====
+async function loadOrders() {
+  const container = document.getElementById('order-list');
+  try {
+    const res = await fetch('/api/orders');
+    const orders = await res.json();
+    if (orders.length === 0) {
+      container.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;">暂无订单</p>';
+      return;
+    }
+    let html = '<table class="dish-table"><thead><tr><th>ID</th><th>菜品明细</th><th>金额</th><th>支付方式</th><th>时间</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+    for (const o of orders) {
+      const items = JSON.parse(o.items);
+      const itemsText = items.map(i => `${i.name}×${i.qty}`).join('、');
+      const time = o.created_at ? o.created_at.replace('T', ' ').substring(0, 16) : '';
+      const statusLabel = o.status === 'paid' ? '已支付' : '已取消';
+      const statusClass = o.status === 'paid' ? 'status-paid' : 'status-cancel';
+      html += `<tr>
+        <td>${o.id}</td>
+        <td title="${itemsText}">${itemsText}</td>
+        <td>¥${o.total.toFixed(2)}</td>
+        <td>${o.payment_method}</td>
+        <td>${time}</td>
+        <td><span class="${statusClass}">${statusLabel}</span></td>
+        <td class="actions">
+          ${o.status === 'paid' ? `<button class="btn-del" onclick="cancelOrder(${o.id})">取消</button>` : ''}
+        </td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<p style="color:#e74c3c;text-align:center;padding:20px;">加载失败</p>';
+  }
+}
+
+async function cancelOrder(id) {
+  if (!confirm('确定取消这笔订单吗？')) return;
+  await fetch(`/api/orders/${id}/status`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'cancelled' })
+  });
+  loadOrders();
+}
+
+loadOrders();
+</script>
+</body>
+</html>
