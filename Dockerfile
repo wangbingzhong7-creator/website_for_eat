@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN ls -la /app/templates/
+RUN echo "=== Build timestamp: $(date) ===" && ls -la /app/templates/ && ls -la /app/static/
 
 EXPOSE 5000
 
