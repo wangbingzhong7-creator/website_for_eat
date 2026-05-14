@@ -4,7 +4,7 @@ import json
 import os
 import qrcode
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 IS_PG = bool(DATABASE_URL)
@@ -128,6 +128,22 @@ def init_db():
 
 
 # ========== 页面路由 ==========
+
+@app.route('/debug')
+def debug():
+    import os as _os
+    files = _os.listdir(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'templates'))
+    cwd = _os.getcwd()
+    app_root = _os.path.dirname(_os.path.abspath(__file__))
+    return jsonify({
+        'cwd': cwd,
+        'app_root': app_root,
+        'template_folder_exists': _os.path.exists('templates'),
+        'template_fullpath': _os.path.join(app_root, 'templates'),
+        'template_fullpath_exists': _os.path.exists(_os.path.join(app_root, 'templates')),
+        'files_in_templates': files,
+        'is_pg': IS_PG,
+    })
 
 @app.route('/')
 def menu():
