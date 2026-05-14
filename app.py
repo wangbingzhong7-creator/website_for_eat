@@ -4,15 +4,15 @@ import json
 import os
 import qrcode
 
-app = Flask(__name__, template_folder='templates')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'),
+            static_folder=os.path.join(BASE_DIR, 'static'))
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 IS_PG = bool(DATABASE_URL)
 
 if IS_PG:
     import psycopg2
-    import psycopg2.extras
-    import urllib.parse
 
     def get_db():
         conn = psycopg2.connect(DATABASE_URL)
@@ -37,32 +37,11 @@ if IS_PG:
 
     def db_last_id(cur):
         return cur.fetchone()[0]
-
-    PG_SQL = {
-        'init_dishes': '''CREATE TABLE IF NOT EXISTS dishes (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            price DOUBLE PRECISION NOT NULL,
-            description TEXT DEFAULT '',
-            image_url TEXT DEFAULT '',
-            category TEXT DEFAULT '未分类'
-        )''',
-        'init_orders': '''CREATE TABLE IF NOT EXISTS orders (
-            id SERIAL PRIMARY KEY,
-            items TEXT NOT NULL,
-            total DOUBLE PRECISION NOT NULL,
-            payment_method TEXT DEFAULT '微信支付',
-            status TEXT DEFAULT 'paid',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )''',
-        'insert_dish': "INSERT INTO dishes (name, price, description, image_url, category) VALUES (%s, %s, %s, %s, %s) RETURNING id",
-        'insert_order': "INSERT INTO orders (items, total, payment_method, status) VALUES (%s, %s, %s, %s) RETURNING id",
-    }
 else:
     import sqlite3
 
     def get_db():
-        conn = sqlite3.connect('menu.db')
+        conn = sqlite3.connect(os.path.join(BASE_DIR, 'menu.db'))
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         return conn
@@ -80,17 +59,29 @@ else:
         cur.execute(sql, params or ())
         return cur
 
-    def db_last_id(cur, conn):
+    def db_last_id(cur, conn=None):
         return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-
-    PG_SQL = {}
 
 
 def init_db():
     conn = get_db()
     if IS_PG:
-        db_execute(conn, PG_SQL['init_dishes'])
-        db_execute(conn, PG_SQL['init_orders'])
+        db_execute(conn, '''CREATE TABLE IF NOT EXISTS dishes (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            price DOUBLE PRECISION NOT NULL,
+            description TEXT DEFAULT '',
+            image_url TEXT DEFAULT '',
+            category TEXT DEFAULT '未分类'
+        )''')
+        db_execute(conn, '''CREATE TABLE IF NOT EXISTS orders (
+            id SERIAL PRIMARY KEY,
+            items TEXT NOT NULL,
+            total DOUBLE PRECISION NOT NULL,
+            payment_method TEXT DEFAULT '微信支付',
+            status TEXT DEFAULT 'paid',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
     else:
         db_execute(conn, '''CREATE TABLE IF NOT EXISTS dishes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,7 +99,6 @@ def init_db():
             status TEXT DEFAULT 'paid',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
-    # 预置5条示例数据
     cur = db_execute(conn, "SELECT COUNT(*) AS cnt FROM dishes")
     count = fetchone(cur)['cnt']
     if count == 0:
@@ -121,8 +111,7 @@ def init_db():
         ]
         for s in samples:
             db_execute(conn,
-                "INSERT INTO dishes (name, price, description, image_url, category) VALUES (%s, %s, %s, %s, %s)",
-                s)
+                "INSERT INTO dishes (name, price, description, image_url, category) VALUES (%s, %s, %s, %s, %s)", s)
     conn.commit()
     conn.close()
 
@@ -131,19 +120,15 @@ def init_db():
 
 @app.route('/debug')
 def debug():
-    import os as _os
-    files = _os.listdir(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'templates'))
-    cwd = _os.getcwd()
-    app_root = _os.path.dirname(_os.path.abspath(__file__))
+    tf = os.path.join(BASE_DIR, 'templates')
     return jsonify({
-        'cwd': cwd,
-        'app_root': app_root,
-        'template_folder_exists': _os.path.exists('templates'),
-        'template_fullpath': _os.path.join(app_root, 'templates'),
-        'template_fullpath_exists': _os.path.exists(_os.path.join(app_root, 'templates')),
-        'files_in_templates': files,
+        'cwd': os.getcwd(),
+        'base_dir': BASE_DIR,
+        'template_folder_exists': os.path.exists(tf),
+        'files': os.listdir(tf) if os.path.exists(tf) else 'NOT FOUND',
         'is_pg': IS_PG,
     })
+
 
 @app.route('/')
 def menu():
