@@ -8,10 +8,12 @@
 </head>
 <body>
 <nav class="navbar">
-  <h1>🍽️ 餐厅点菜</h1>
+  <div class="navbar-brand">
+    <span class="brand-icon">🍜</span> 美味点菜
+  </div>
   <div class="nav-links">
-    <a href="#" class="cart-toggle" onclick="toggleCart()">🛒 购物车 <span id="cart-count">0</span></a>
-    <a href="/admin">⚙️ 后台管理</a>
+    <a href="#" class="cart-link" onclick="toggleCart()">🛒 <span id="cart-count">0</span></a>
+    <a href="/admin">⚙️ 管理</a>
   </div>
 </nav>
 
@@ -46,7 +48,7 @@
 
   <aside class="cart-sidebar" id="cart-sidebar">
     <div class="cart-header">
-      <h2>购物车</h2>
+      <h2>🛒 购物车 <span class="cart-count-chip" id="cart-count-chip">0</span></h2>
       <button class="cart-close" onclick="toggleCart()">✕</button>
     </div>
     <div class="cart-items" id="cart-items">
@@ -84,28 +86,34 @@ function toggleCart() {
 
 function renderCart() {
   const container = document.getElementById('cart-items');
-  const countEl = document.getElementById('cart-count');
-  const totalEl = document.getElementById('cart-total');
-  let total = 0;
-  let count = 0;
+  let total = 0, count = 0;
   let html = '';
   for (const [id, item] of Object.entries(cart)) {
     const subtotal = item.price * item.qty;
     total += subtotal;
     count += item.qty;
     html += `<div class="cart-item">
-      <span>${item.name}</span>
+      <span class="cart-item-name">${item.name}</span>
       <div class="cart-qty">
         <button onclick="changeQty(${id}, -1)">−</button>
         <span>${item.qty}</span>
         <button onclick="changeQty(${id}, 1)">＋</button>
       </div>
-      <span>¥${subtotal.toFixed(2)}</span>
+      <span class="cart-item-price">¥${subtotal.toFixed(2)}</span>
     </div>`;
   }
   container.innerHTML = html || '<p class="cart-empty">购物车是空的</p>';
-  countEl.textContent = count;
-  totalEl.textContent = `¥${total.toFixed(2)}`;
+  // 同步各处计数
+  const totalStr = `¥${total.toFixed(2)}`;
+  ['cart-count', 'cart-count-chip', 'cart-count-mobile'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = count;
+  });
+  document.getElementById('cart-total').textContent = totalStr;
+  const tEl = document.getElementById('cart-total-mobile');
+  if (tEl) tEl.textContent = totalStr;
+  // 移动端底部栏显示/隐藏
+  const bar = document.getElementById('mobile-cart-bar');
+  if (bar) bar.style.display = count > 0 ? 'flex' : 'none';
 }
 
 let currentStep = 'confirm';
@@ -229,6 +237,15 @@ function closePayment() {
       <button class="btn-pay-done" onclick="closePayment()">完成</button>
     </div>
   </div>
+</div>
+
+<!-- 移动端底部购物车条 -->
+<div class="mobile-cart-bar" id="mobile-cart-bar" style="display:none">
+  <div class="cart-summary">
+    🛒 <span class="cart-badge-mobile" id="cart-count-mobile">0</span>
+    <span class="cart-total-mobile" id="cart-total-mobile">¥0.00</span>
+  </div>
+  <button class="btn-view-cart" onclick="toggleCart()">查看购物车</button>
 </div>
 
 </body>
