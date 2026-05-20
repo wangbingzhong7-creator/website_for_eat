@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 import io
 import json
 import os
@@ -7,6 +7,10 @@ import qrcode
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'),
             static_folder=os.path.join(BASE_DIR, 'static'))
+app.secret_key = os.environ.get('SECRET_KEY', 'diancai-secret-key-2024')
+
+ADMIN_USER = 'lightrain'
+ADMIN_PASS = 'lightsnow'
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 IS_PG = bool(DATABASE_URL)
@@ -118,6 +122,32 @@ def init_db():
 
 # ========== 页面路由 ==========
 
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = ''
+    if request.method == 'POST':
+        if request.form.get('username') == ADMIN_USER and request.form.get('password') == ADMIN_PASS:
+            session['admin_logged_in'] = True
+            return redirect(url_for('admin'))
+        error = '账号或密码错误'
+    return render_template('login.html', error=error)
+
+
+@app.route('/logout')
+def logout():
+    session.pop('admin_logged_in', None)
+    return redirect(url_for('login'))
+
 @app.route('/debug')
 def debug():
     tf = os.path.join(BASE_DIR, 'templates')
@@ -142,6 +172,7 @@ def menu():
 
 
 @app.route('/admin')
+@login_required
 def admin():
     conn = get_db()
     cur = db_execute(conn, "SELECT * FROM dishes ORDER BY category, id")

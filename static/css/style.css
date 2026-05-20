@@ -471,6 +471,59 @@ body {
 .btn-download:disabled { color: #ccc; border-color: #ccc; cursor: not-allowed; background: #fafaf9; }
 .qrcode-url { color: var(--c-text-secondary); font-size: 0.85rem; word-break: break-all; }
 
+/* ===== 登录页 ===== */
+.login-card {
+  background: var(--c-white);
+  border-radius: 20px;
+  padding: 40px 32px;
+  width: 380px;
+  max-width: 92vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  text-align: center;
+}
+.login-logo { font-size: 3.5rem; margin-bottom: 8px; }
+.login-card h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; color: var(--c-text); }
+.login-sub { font-size: 0.85rem; color: var(--c-text-secondary); margin-bottom: 28px; }
+.login-form { text-align: left; }
+.login-form .form-group { margin-bottom: 16px; }
+.login-form label { font-size: 0.85rem; color: var(--c-text-secondary); font-weight: 500; display: block; margin-bottom: 6px; }
+.login-form input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--c-border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.login-form input:focus {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px rgba(249,115,22,0.1);
+}
+.login-error {
+  color: #ef4444; font-size: 0.85rem;
+  text-align: center; margin-bottom: 12px;
+  background: #fef2f2; padding: 8px; border-radius: 8px;
+}
+.btn-login {
+  width: 100%; padding: 12px;
+  background: linear-gradient(135deg, var(--c-primary), var(--c-primary-hover));
+  color: #fff; border: none; border-radius: 10px;
+  font-size: 1rem; font-weight: 700; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(249,115,22,0.3);
+  margin-top: 8px; letter-spacing: 4px;
+  transition: all 0.2s;
+}
+.btn-login:hover { opacity: 0.9; transform: translateY(-1px); }
+
+/* 后台管理导航退出按钮 */
+.nav-logout {
+  color: #fff !important; text-decoration: none;
+  font-size: 0.85rem; padding: 6px 14px; border-radius: 20px;
+  background: rgba(255,255,255,0.1);
+}
+.nav-logout:hover { background: rgba(239,68,68,0.3) !important; }
+
 /* ===== 响应式 ===== */
 @media (max-width: 768px) {
   .menu-layout { flex-direction: column; padding: 0 0 80px 0; }
