@@ -1,8 +1,10 @@
 services:
   - type: web
     name: diancai
-    env: docker
+    runtime: python311
     plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
     healthCheckPath: /api/dishes
     envVars:
       - key: DATABASE_URL
