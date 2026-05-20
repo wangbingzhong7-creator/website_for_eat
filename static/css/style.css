@@ -117,6 +117,41 @@ body::after {
   100% { transform: scale(1); }
 }
 
+/* ===== 天数横幅 ===== */
+.days-banner {
+  text-align: center;
+  padding: 12px 20px;
+  font-size: 1rem;
+  color: var(--c-pink-dark);
+  background: linear-gradient(to right, transparent, var(--c-pink-light), var(--c-blue-light), var(--c-pink-light), transparent);
+  font-family: var(--font-serif);
+  letter-spacing: 2px;
+  position: relative;
+  z-index: 1;
+}
+.days-banner strong {
+  color: var(--c-pink-dark);
+  font-size: 1.15rem;
+}
+#days-count {
+  font-size: 1.3rem;
+  font-weight: 900;
+  background: var(--c-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.days-heart {
+  font-size: 0.9rem;
+  animation: days-heart-beat 1.5s ease-in-out infinite;
+  display: inline-block;
+}
+@keyframes days-heart-beat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.25); }
+  30% { transform: scale(1); }
+}
+
 /* ===== 点菜页面布局 ===== */
 .menu-layout {
   display: flex;

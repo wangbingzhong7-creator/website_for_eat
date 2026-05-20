@@ -17,6 +17,12 @@
   </div>
 </nav>
 
+<div class="days-banner" id="days-banner">
+  <span class="days-heart">💕</span>
+  在一起的 <strong>第 <span id="days-count">···</span> 天</strong>
+  <span class="days-heart">💕</span>
+</div>
+
 <div class="menu-layout">
   <div class="menu-main">
     {% for category in categories %}
@@ -190,6 +196,14 @@ function closePayment() {
   if (paymentTimer) { clearInterval(paymentTimer); paymentTimer = null; }
   document.getElementById('payment-modal').classList.remove('active');
 }
+// 在一起天数计算
+(function() {
+  const start = new Date(2025, 0, 29);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.floor((today - start) / (1000 * 60 * 60 * 24)) + 1;
+  document.getElementById('days-count').textContent = days;
+})();
 </script>
 <!-- 支付弹窗 -->
 <div class="payment-overlay" id="payment-modal">
